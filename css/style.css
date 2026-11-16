@@ -480,3 +480,42 @@ body.teacher { --fs: 20px; }
 /* ── 활동2 교사 미션 안내 ── */
 .mission-list { padding-left: 1.4em; margin: 8px 0 12px; }
 .mission-list li { margin: 8px 0; }
+
+/* ── 활동2 함께 배우기 ── */
+.lesson-head { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 8px; }
+.lesson-head h2 { display: flex; align-items: center; margin: 0; }
+.lesson-tag { display: inline-block; background: var(--oasis); color: #fff; border-radius: 999px; padding: 3px 14px; font-weight: 800; font-size: .85em; box-shadow: 0 3px 0 var(--oasis-d); }
+.lesson-body { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; }
+.lesson-body.col { grid-template-columns: 1fr; }
+.lesson-unit { text-align: center; padding: 10px 22px; background: #fff; border-radius: 22px; box-shadow: var(--shadow-sm); }
+.lesson-visual { display: flex; align-items: flex-end; gap: 10px; }
+.lesson-visual .literbox { width: 190px; }
+.lesson-point { font-size: 1.1em; font-weight: 700; margin: .35em 0; padding-left: 1.1em; position: relative; }
+.lesson-point::before { content: "●"; position: absolute; left: 0; color: var(--sun); font-size: .7em; top: .35em; }
+.lesson-examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.ex { background: #fff; border-radius: 999px; padding: 6px 14px; box-shadow: var(--shadow-sm); }
+.lesson-life { color: var(--ink-2); margin-top: 8px; }
+.lesson-count { font-size: 1.25em; font-weight: 900; color: var(--oasis-d); }
+.convert { display: flex; flex-direction: column; gap: 10px; }
+.convert-row { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; background: #fff; border-radius: 20px; padding: 12px 16px; box-shadow: var(--shadow-sm); font-size: 1.25em; }
+.convert-row b { font-size: 1.15em; }
+.convert-row .mid { color: var(--ink-2); }
+.convert-row .to { color: var(--no); }
+.convert-row .eq { color: var(--sun-d); font-weight: 900; }
+.lesson.big { font-size: 1.15em; padding: 26px 32px; }
+.lesson.big .lesson-unit .unit-big { font-size: 6em; }
+.lesson.big .lesson-visual .literbox { width: 240px; }
+@media (max-width: 640px) { .lesson-body { grid-template-columns: 1fr; } .lesson-unit { justify-self: center; } }
+
+/* 활동2 교사 하위 단계 */
+.substeps { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+.substep { border: 0; border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: .8em; background: var(--glass); box-shadow: var(--shadow-sm); cursor: pointer; }
+.substep.past { background: var(--ok-bg); }
+.substep.now.learn { background: var(--oasis); color: #fff; box-shadow: 0 3px 0 var(--oasis-d); }
+.substep.now.mission { background: var(--sun); color: #fff; box-shadow: 0 3px 0 var(--sun-d); }
+.t-hint { text-align: center; font-weight: 800; color: var(--ink-2); background: var(--glass); display: table; margin: 4px auto; padding: 8px 20px; border-radius: 999px; }
+.a2-now { text-align: center; }
+.a2-now h2 { margin: 8px 0 4px; }
+.big-count { font-size: 1.3em; font-weight: 800; color: var(--ink-2); margin-top: 6px; }
+.big-count b { font-size: 2.2em; color: var(--ok); }
+.lesson .stamp { font-size: 1.9em; margin: 4px 0 18px; }

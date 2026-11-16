@@ -3,6 +3,7 @@ import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, SCALE_LEVELS, SELF_CHECK,
 import { createSync } from "./sync.js";
 import { h, store, toast, confetti, fmtLmL, readLmL, speakBtn, vImg } from "./util.js";
 import { jarSVG, cupSVG, bridgeSVG } from "./art.js";
+import { A2_MISSIONS, A2_STEPS, lessonView } from "./lessons.js";
 
 const app = document.getElementById("app");
 const params = new URLSearchParams(location.search);
@@ -27,7 +28,7 @@ async function boot() {
 }
 
 function freshRoom() {
-  return { createdAt: Date.now(), stage: "lobby", storyIdx: 0, ask: false, reveal: false, conclude: false, a2open: false, attention: false, villages: {}, devices: {} };
+  return { createdAt: Date.now(), stage: "lobby", storyIdx: 0, ask: false, reveal: false, conclude: false, a2step: 0, a2open: false, attention: false, villages: {}, devices: {} };
 }
 
 async function createRoom() {
@@ -80,11 +81,13 @@ function goStage(i) {
 function next() {
   const st = T.room.stage;
   if (st === "story" && (T.room.storyIdx || 0) < STORY.length - 1) return setRoom({ storyIdx: (T.room.storyIdx || 0) + 1 });
+  if (st === "a2" && (T.room.a2step || 0) < A2_STEPS.length - 1) return setRoom({ a2step: (T.room.a2step || 0) + 1 });
   goStage(stageIdx() + 1);
 }
 function prev() {
   const st = T.room.stage;
   if (st === "story" && (T.room.storyIdx || 0) > 0) return setRoom({ storyIdx: (T.room.storyIdx || 0) - 1 });
+  if (st === "a2" && (T.room.a2step || 0) > 0) return setRoom({ a2step: (T.room.a2step || 0) - 1 });
   goStage(stageIdx() - 1);
 }
 
@@ -122,7 +125,8 @@ function render() {
 
   const views = { lobby: vLobby, story: vStory, goal: vGoal, a1: vA1, a2: vA2, a3: vA3, wrap: vWrap };
   const main = h("main.tmain", (views[R.stage] || vLobby)(R));
-  const storyLabel = R.stage === "story" ? ` (${(R.storyIdx || 0) + 1}/${STORY.length})` : "";
+  const storyLabel = R.stage === "story" ? ` (${(R.storyIdx || 0) + 1}/${STORY.length})`
+    : R.stage === "a2" ? ` · ${A2_STEPS[R.a2step || 0].label}` : "";
   const foot = h("footer.tfoot",
     h("button.btn.big", { type: "button", disabled: idx === 0 && !(R.stage === "story" && R.storyIdx > 0), onclick: prev }, "◀ 이전"),
     h("div.now-label", STAGES[idx].label + storyLabel),
@@ -217,26 +221,39 @@ function vA1(R) {
 }
 
 // ───────────────── 활동2 ─────────────────
+// 미션마다 [배우기 → 미션] 순서. 배우기 화면에서 [다음]을 누르면 학생 태블릿에 그 미션이 열린다.
 const A2N = ["L", "mL", "1000", "장부"];
+const lessonState = { pour: 0, rerender: () => render() };
 function vA2(R) {
-  const left = R.a2open
-    ? h("div",
-        h("div.concepts",
-          h("div.ccard", h("b", "1 L"), h("span", "1 리터")),
-          h("div.ccard", h("b", "1 mL"), h("span", "1 밀리리터")),
-          h("div.ccard.wide.accent", h("b", "1 L = 1000 mL")),
-          h("div.ccard.wide", h("b", "1 L 300 mL = 1300 mL"), h("span", "1 리터 300 밀리리터"))),
-        h("button.btn.small", { type: "button", onclick: () => setRoom({ a2open: false }) }, "정리 숨기기"))
-    : h("div.panel.a2-missions",
-        h("h3", "단위의 각인 미션"),
-        h("ol.mission-list",
-          h("li", h("b", "L 각인"), " · 리터를 읽고 따라 쓰기"),
-          h("li", h("b", "mL 각인"), " · 밀리리터를 읽고 따라 쓰기"),
-          h("li", h("b", "천 개의 물방울"), " · 100 mL씩 부어 1 L 그릇 채우기"),
-          h("li", h("b", "마을 장부"), " · 들이를 바꾸어 나타내고 읽고 쓰기")),
-        h("p.small", "학생들이 미션을 해결한 뒤에 개념 정리를 보여 주세요. (답이 미리 보이지 않도록 가려 두었어요)"),
-        h("button.btn.primary", { type: "button", onclick: () => setRoom({ a2open: true }) }, "📌 개념 정리 보여 주기"));
-  return h("div.ta2", left, progressTable(R, "a2", A2N));
+  const step = R.a2step || 0;
+  const k = Math.floor(step / 2);
+  const chips = h("div.substeps", A2_STEPS.map((st, i) =>
+    h("button.substep", { type: "button", class: `substep ${st.kind} ${i === step ? "now" : i < step ? "past" : ""}`, onclick: () => setRoom({ a2step: i }) },
+      st.kind === "learn" ? "📖 " : "🏅 ", st.label)));
+  if (A2_STEPS[step].kind === "learn") {
+    return h("div.ta2l", chips, lessonView(k, { teacher: true, state: lessonState }),
+      h("p.t-hint", `설명을 마치고 [다음 ▶]을 누르면 학생 태블릿에서 ‘${A2_MISSIONS[k].name}’ 미션이 열려요.`));
+  }
+  const devs = Object.values(R.devices || {});
+  const doneN = devs.filter((d) => (d.a2 || 0) > k).length;
+  const left = h("div",
+    h("div.panel.a2-now",
+      h("span.lesson-tag", "지금 미션"),
+      h("h2", `🏅 ${A2_MISSIONS[k].name}`),
+      h("p", A2_MISSIONS[k].task),
+      h("div.big-count", h("b", doneN), ` / ${devs.length}대 완료`)),
+    step === A2_STEPS.length - 1
+      ? (R.a2open
+          ? h("div",
+              h("div.concepts",
+                h("div.ccard", h("b", "1 L"), h("span", "1 리터")),
+                h("div.ccard", h("b", "1 mL"), h("span", "1 밀리리터")),
+                h("div.ccard.wide.accent", h("b", "1 L = 1000 mL")),
+                h("div.ccard.wide", h("b", "1 L 300 mL = 1300 mL"), h("span", "1 리터 300 밀리리터"))),
+              h("button.btn.small", { type: "button", onclick: () => setRoom({ a2open: false }) }, "정리 숨기기"))
+          : h("button.btn.primary", { type: "button", onclick: () => setRoom({ a2open: true }) }, "📌 활동2 개념 정리 보여 주기"))
+      : null);
+  return h("div.ta2l", chips, h("div.ta2", left, progressTable(R, "a2", A2N)));
 }
 
 function progressTable(R, key, names) {

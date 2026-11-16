@@ -3,6 +3,7 @@ import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, MATCH_PAIRS, SCALE_LEVELS
 import { createSync } from "./sync.js";
 import { h, speakBtn, speak, toast, confetti, store, fmtLmL, readLmL, shuffle, vImg } from "./util.js";
 import { jarSVG, cupSVG, beakerSVG, literBoxSVG, bridgeSVG, pourSceneSVG } from "./art.js";
+import { A2_MISSIONS, lessonView, missionsOpen } from "./lessons.js";
 import { choiceQuiz, numberQuestion, lmlQuestion, traceBox, matchGame } from "./widgets.js";
 
 const app = document.getElementById("app");
@@ -248,12 +249,6 @@ function stA1() {
 }
 
 // ───────────────── 활동2: 단위의 탄생 ─────────────────
-const A2_MISSIONS = [
-  { mark: "L", name: "L 각인" },
-  { mark: "mL", name: "mL 각인" },
-  { mark: "1000", name: "천 개의 물방울" },
-  { mark: "장부", name: "마을 장부" },
-];
 // 메달 글자 크기: 글자 폭에 맞춰 메달 안쪽 원(지름의 약 44%) 안에 들어가게
 const MEDAL_PX = { "medal": 92, "medal.sm": 64, "medal.big": 210 };
 function medal(i, cls = "medal") {
@@ -276,7 +271,7 @@ function showReward(i, title) {
   document.body.append(box);
 }
 function stA2() {
-  prog.a2 = prog.a2 || { m: 0, step: 0 };
+  prog.a2 = prog.a2 || { m: 0, step: 1, lk: 0 };
   const P = prog.a2;
   const root = h("div.a2");
   const map = () => h("div.mission-map", A2_MISSIONS.map((m, i) =>
@@ -284,7 +279,7 @@ function stA2() {
   const next = () => { P.step++; saveProg(); draw(); };
   const finishMission = (msg) => {
     const done = P.m;
-    P.m++; P.step = 0; saveProg();
+    P.m++; P.step = P.m <= 1 ? 1 : 0; saveProg();
     push(`devices/${devId()}`, { a2: P.m });
     confetti(35); draw();
     showReward(done, msg.replace(/^\S+\s/, ""));
@@ -363,6 +358,7 @@ function stA2() {
   ];
 
   const draw = () => {
+    gate = gateKey();
     if (P.m >= A2_MISSIONS.length) {
       root.replaceChildren(map(), h("div.panel.center-text",
         h("div.medal-row", A2_MISSIONS.map((_, i) => medal(i, "medal"))), h("h2", "단위의 각인을 모두 모았어요!"),
@@ -374,12 +370,24 @@ function stA2() {
         h("p", "선생님이 다음 활동을 열 때까지 짝과 함께 각인을 다시 읽어 보세요.")));
       return;
     }
+    // 선생님이 아직 이 미션을 열지 않았으면 '함께 배우기' 화면
+    if (P.m >= openCount()) {
+      root.replaceChildren(map(), lessonView(P.m),
+        S.sync
+          ? h("p.waiting", "선생님 설명이 끝나면 미션이 열려요!")
+          : h("div.row.center-row", h("button.btn.primary.big", { type: "button", onclick: () => { P.lk = P.m + 1; saveProg(); draw(); } }, "미션 시작하기")));
+      return;
+    }
     const steps = missions[P.m]();
     const cur = P.m <= 1 ? steps[Math.min(P.step, steps.length - 1)] : steps[0];
     root.replaceChildren(map(), cur);
   };
+  const openCount = () => (S.sync ? missionsOpen(S.room.a2step) : P.lk || 0);
+  let gate = null;
+  const gateKey = () => (P.m >= A2_MISSIONS.length ? "done" : P.m < openCount() ? `m${P.m}` : `l${P.m}`);
+  const drawIfChanged = () => { const g = gateKey(); if (g !== gate) { gate = g; draw(); } };
   draw();
-  return { el: root };
+  return { el: root, update: drawIfChanged };
 }
 
 // ───────────────── 활동3: 평화의 눈금 ─────────────────
