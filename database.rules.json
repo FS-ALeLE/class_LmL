@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "rooms": {
+      ".read": "query.orderByChild == 'createdAt' && query.limitToFirst <= 20",
+      ".indexOn": ["createdAt"],
+      "$code": {
+        ".read": "$code.matches(/^[0-9]{4}$/)",
+        ".write": "$code.matches(/^[0-9]{4}$/)",
+        ".validate": "!newData.exists() || newData.hasChild('createdAt')"
+      }
+    }
+  }
+}

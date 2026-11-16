@@ -1,0 +1,265 @@
+// 교사 진행판 (TV·전자칠판에 띄우는 화면)
+import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, SCALE_LEVELS, SELF_CHECK } from "./config.js";
+import { createSync } from "./sync.js";
+import { h, store, toast, confetti, fmtLmL, readLmL, speakBtn } from "./util.js";
+import { jarSVG, cupSVG, bridgeSVG } from "./art.js";
+
+const app = document.getElementById("app");
+const params = new URLSearchParams(location.search);
+const T = { sync: null, code: null, room: null, unsub: null, lastAllDone: false };
+const rp = (p = "") => `rooms/${T.code}${p ? "/" + p : ""}`;
+
+async function boot() {
+  app.replaceChildren(h("div.center", h("div.loading", "🏺 오아시스에 연결하는 중…")));
+  T.sync = await createSync();
+  if (!T.sync) {
+    T.code = "수동";
+    T.room = store.get("deuli-teacher-manual") || freshRoom();
+    render();
+    return;
+  }
+  const saved = store.get("deuli-teacher-room");
+  if (saved && Date.now() - saved.at < 12 * 3600 * 1000) {
+    const exists = await T.sync.get(`rooms/${saved.code}/createdAt`).catch(() => null);
+    if (exists) return attach(saved.code);
+  }
+  await createRoom();
+}
+
+function freshRoom() {
+  return { createdAt: Date.now(), stage: "lobby", storyIdx: 0, reveal: false, attention: false, villages: {}, devices: {} };
+}
+
+async function createRoom() {
+  try { await T.sync.cleanupOld(); } catch (e) { console.warn("cleanup", e); }
+  let code;
+  for (let i = 0; i < 20; i++) {
+    code = String(1000 + Math.floor(Math.random() * 9000));
+    const ex = await T.sync.get(`rooms/${code}/createdAt`).catch(() => null);
+    if (!ex) break;
+  }
+  try {
+    await T.sync.set(`rooms/${code}`, { ...freshRoom(), createdAt: T.sync.now() });
+  } catch (e) {
+    console.error(e);
+    app.replaceChildren(h("div.center", h("div.panel",
+      h("h2", "방을 만들 수 없어요 😢"),
+      h("p", "Firebase 보안 규칙이 적용되었는지 확인해 주세요. (README의 ‘Firebase 보안 규칙’ 참고)"),
+      h("p.small", String(e && e.message || e)),
+      h("a.btn", { href: "?mode=manual" }, "수동 모드로 진행하기"))));
+    return;
+  }
+  attach(code);
+}
+
+function attach(code) {
+  T.code = code;
+  store.set("deuli-teacher-room", { code, at: Date.now() });
+  T.unsub?.();
+  T.unsub = T.sync.on(rp(), (data) => {
+    if (!data) { toast("방이 닫혔어요."); return; }
+    T.room = data; render();
+  });
+  T.sync.onConnection((ok) => document.body.classList.toggle("offline", !ok));
+}
+
+function setRoom(patch) {
+  if (T.sync) { T.sync.update(rp(), patch).catch((e) => toast("저장 실패: " + e.message, "no")); }
+  else { Object.assign(T.room, patch); store.set("deuli-teacher-manual", T.room); render(); }
+}
+function setVillage(id, patch) {
+  if (T.sync) T.sync.update(rp(`villages/${id}`), patch);
+  else { T.room.villages = T.room.villages || {}; T.room.villages[id] = { ...(T.room.villages[id] || {}), ...patch }; store.set("deuli-teacher-manual", T.room); render(); }
+}
+
+const stageIdx = () => Math.max(0, STAGES.findIndex((s) => s.key === (T.room.stage || "lobby")));
+function goStage(i) {
+  i = Math.max(0, Math.min(STAGES.length - 1, i));
+  setRoom({ stage: STAGES[i].key, attention: false });
+}
+function next() {
+  const st = T.room.stage;
+  if (st === "story" && (T.room.storyIdx || 0) < STORY.length - 1) return setRoom({ storyIdx: (T.room.storyIdx || 0) + 1 });
+  goStage(stageIdx() + 1);
+}
+function prev() {
+  const st = T.room.stage;
+  if (st === "story" && (T.room.storyIdx || 0) > 0) return setRoom({ storyIdx: (T.room.storyIdx || 0) - 1 });
+  goStage(stageIdx() - 1);
+}
+
+function studentURL() {
+  const base = location.href.replace(/teacher(\.html)?(\?.*)?(#.*)?$/, "");
+  const q = new URLSearchParams();
+  if (T.sync) q.set("room", T.code);
+  if (params.get("mode")) q.set("mode", params.get("mode"));
+  const qs = q.toString();
+  return base + (qs ? "?" + qs : "");
+}
+
+// ───────────────── 공통 틀 ─────────────────
+function render() {
+  const R = T.room || {};
+  const idx = stageIdx();
+  const devices = Object.entries(R.devices || {});
+  const online = devices.filter(([, d]) => d.online !== false).length;
+
+  const top = h("header.tbar",
+    h("div.brand", "🏜️ 여섯 마을 물 거래 대소동"),
+    h("div.code-chip", T.sync ? h("span", "방 코드 ", h("b", T.code)) : h("span", "📴 수동 모드")),
+    T.sync ? h("div.online", `👥 ${online}대 접속`) : null,
+    h("button.btn.attn", { type: "button", "aria-pressed": String(!!R.attention), onclick: () => setRoom({ attention: !R.attention }) }, R.attention ? "👀 주목 해제" : "👀 주목"),
+    h("details.menu", h("summary", "⚙️"),
+      h("div.menu-body",
+        h("p.small", "학생 주소: ", h("b", studentURL())),
+        h("button.btn", { type: "button", onclick: () => { if (confirm("결과를 지우고 처음부터 할까요? (같은 방 코드 유지)")) setRoom({ ...freshRoom(), createdAt: R.createdAt || Date.now(), devices: R.devices || {} }); } }, "↺ 결과 초기화"),
+        T.sync ? h("button.btn", { type: "button", onclick: async () => { if (confirm("새 방을 만들까요? 학생들은 새 코드로 다시 들어와야 해요.")) { T.unsub?.(); await createRoom(); } } }, "🆕 새 방 만들기") : null,
+        T.sync ? h("button.btn.danger", { type: "button", onclick: async () => { if (confirm("수업을 마치고 방을 닫을까요? 모든 기록이 지워져요.")) { T.unsub?.(); await T.sync.remove(rp()); store.del("deuli-teacher-room"); app.replaceChildren(h("div.center", h("div.panel", h("h2", "방을 닫았어요. 수고하셨습니다! 👏"), h("button.btn.primary", { onclick: () => location.reload() }, "새 수업 시작")))); } } }, "🚪 방 닫기") : null,
+      )),
+  );
+  const stepper = h("nav.stepper", STAGES.map((s, i) =>
+    h("button.step", { type: "button", class: `step ${i === idx ? "now" : i < idx ? "past" : ""}`, onclick: () => goStage(i) }, h("span.n", i), s.short)));
+
+  const views = { lobby: vLobby, story: vStory, a1: vA1, a2: vA2, a3: vA3, wrap: vWrap };
+  const main = h("main.tmain", (views[R.stage] || vLobby)(R));
+  const storyLabel = R.stage === "story" ? ` (${(R.storyIdx || 0) + 1}/${STORY.length})` : "";
+  const foot = h("footer.tfoot",
+    h("button.btn.big", { type: "button", disabled: idx === 0 && !(R.stage === "story" && R.storyIdx > 0), onclick: prev }, "◀ 이전"),
+    h("div.now-label", STAGES[idx].label + storyLabel),
+    h("button.btn.primary.big", { type: "button", disabled: idx === STAGES.length - 1, onclick: next }, "다음 ▶"));
+  app.replaceChildren(top, stepper, main, foot);
+}
+
+// ───────────────── 입장 ─────────────────
+function vLobby(R) {
+  const url = studentURL();
+  const qr = h("div.qr");
+  if (window.QRCode && T.sync) setTimeout(() => { try { new window.QRCode(qr, { text: url, width: 200, height: 200 }); } catch {} }, 0);
+  return h("div.lobby",
+    h("div.join.panel",
+      h("h2", "태블릿으로 들어와요!"),
+      T.sync ? h("div.join-code", T.code) : h("p", "수동 모드: 학생들은 주소로 들어와 ‘출발’을 누르면 돼요."),
+      qr,
+      h("p.url", url)),
+    h("div.panel",
+      h("h3", "마을별 접속 현황"),
+      h("div.village-status", VILLAGES.map((v) => {
+        const ds = Object.values(R.devices || {}).filter((d) => d.v === v.id);
+        return h("div.vs", { style: { "--vc": v.color } }, h("span.big", v.emoji), h("b", v.name),
+          h("span.devs", ds.length ? ds.sort((a, b) => a.seat - b.seat).map((d) => h("i", { class: d.online === false ? "off" : "" }, `${d.seat}${d.helper ? "🤝" : ""}`)) : "—"));
+      }))));
+}
+
+// ───────────────── 이야기 ─────────────────
+function vStory(R) {
+  const i = Math.min(STORY.length - 1, R.storyIdx || 0);
+  const s = STORY[i];
+  return h("div.tstory",
+    h("div.story-art.huge", s.art),
+    h("h1", s.title, speakBtn(s.text)),
+    h("p.story-text", s.text),
+    i === STORY.length - 1 ? h("div.goal.big", h("b", "📜 학습 문제"), h("p", LESSON_GOAL)) : null,
+    i === STORY.length - 1 ? h("div.flow", "활동1 물 거래 대소동 → 활동2 단위의 탄생 → 활동3 평화의 눈금") : null,
+    h("div.dots-nav", STORY.map((_, k) => h("i", { class: k === i ? "on" : "" }))));
+}
+
+// ───────────────── 활동1 ─────────────────
+function vA1(R) {
+  const res = R.villages || {};
+  const cnt = VILLAGES.filter((v) => res[v.id]?.a1 != null).length;
+  return h("div.ta1",
+    h("div.t-head", h("h2", "같은 마법 항아리인데… 몇 컵?"), h("span.badge", `${cnt} / 6 마을 도착`)),
+    h("div.t-board", VILLAGES.map((v) => {
+      const val = res[v.id]?.a1;
+      return h("button.t-card", { type: "button", style: { "--vc": v.color }, class: `t-card ${val != null ? "in" : ""}`,
+        title: "눌러서 직접 입력", onclick: () => {
+          const x = prompt(`${v.name}의 결과(컵 수)를 입력하세요`, val ?? "");
+          if (x !== null && x.trim() !== "" && !isNaN(+x)) setVillage(v.id, { a1: +x });
+        } },
+        h("span.big", v.emoji), h("span.name", v.name), h("b.val", val != null ? `${val}컵` : "?"));
+    })),
+    R.reveal
+      ? h("div.panel.t-reveal",
+          h("div.cups-row", VILLAGES.map((v) => h("div.cup-col", cupSVG(v, { base: 130 }), h("span", v.emoji)))),
+          h("p.big-msg", "컵의 크기가 서로 다르면 같은 항아리도 다르게 재어져요!"),
+          h("p.big-msg.accent", "👉 누구나 똑같이 쓸 수 있는 ‘기준 단위’가 필요해요."))
+      : h("div.t-question",
+          h("p.big-msg", "🤔 같은 항아리인데 왜 결과가 다를까요?"),
+          h("button.btn.primary.big", { type: "button", onclick: () => setRoom({ reveal: true }) }, "🔍 마을 컵 나란히 놓기")),
+  );
+}
+
+// ───────────────── 활동2 ─────────────────
+const A2N = ["L", "mL", "1000", "장부"];
+function vA2(R) {
+  return h("div.ta2",
+    h("div.concepts",
+      h("div.ccard", h("b", "1 L"), h("span", "1 리터")),
+      h("div.ccard", h("b", "1 mL"), h("span", "1 밀리리터")),
+      h("div.ccard.wide.accent", h("b", "1 L = 1000 mL")),
+      h("div.ccard.wide", h("b", "1 L 300 mL = 1300 mL"), h("span", "1 리터 300 밀리리터")),
+    ),
+    progressTable(R, "a2", A2N));
+}
+
+function progressTable(R, key, names) {
+  const devs = Object.entries(R.devices || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => a.v - b.v || a.seat - b.seat);
+  return h("div.panel.progress",
+    h("h3", "태블릿별 진행"),
+    devs.length ? h("table",
+      h("thead", h("tr", h("th", "태블릿"), names.map((n) => h("th", n)))),
+      h("tbody", devs.map((d) => {
+        const v = VILLAGES.find((x) => x.id === d.v) || VILLAGES[0];
+        const n = d[key] || 0;
+        return h("tr", h("td", `${v.emoji} ${d.seat}번${d.helper ? " 🤝" : ""}`), names.map((_, i) => h("td", i < n ? "✅" : i === n ? "✏️" : "·")));
+      })))
+      : h("p.small", "아직 접속한 태블릿이 없어요."));
+}
+
+// ───────────────── 활동3 ─────────────────
+function vA3(R) {
+  const res = R.villages || {};
+  const done = {}; VILLAGES.forEach((v) => { if (res[v.id]?.a3) done[v.id] = true; });
+  const n = Object.keys(done).length;
+  const all = n === VILLAGES.length;
+  if (all && !T.lastAllDone) confetti(80);
+  T.lastAllDone = all;
+  return h("div.ta3",
+    h("div.t-head", h("h2", "평화의 눈금으로 마법 항아리를 다시 재요!"), h("span.badge", `${n} / 6 다리 조각`)),
+    h("div.panel", bridgeSVG(VILLAGES, done),
+      h("div.t-board.small", VILLAGES.map((v) => {
+        const r = res[v.id]?.a3;
+        return h("button.t-card", { type: "button", style: { "--vc": v.color }, class: `t-card ${r ? "in" : ""}`, title: "눌러서 직접 완료 표시",
+          onclick: () => setVillage(v.id, { a3: r ? null : { l: Math.floor(JAR_ML / 1000), ml: JAR_ML % 1000 } }) },
+          h("span.big", v.emoji), h("b.val", r ? fmtLmL(r.l * 1000 + r.ml) : "?"));
+      })),
+      all ? h("p.big-msg.accent", `모든 마을이 똑같이 ${fmtLmL(JAR_ML)} (${JAR_ML} mL)!`) : null),
+    progressTable(R, "a3", SCALE_LEVELS.map((l, i) => `${i + 1}단계`)));
+}
+
+// ───────────────── 정리 ─────────────────
+function vWrap(R) {
+  const res = R.villages || {};
+  const done = {}; VILLAGES.forEach((v) => { if (res[v.id]?.a3) done[v.id] = true; });
+  const devs = Object.values(R.devices || {});
+  const agg = SELF_CHECK.map((_, i) => [0, 1, 2].map((k) => devs.filter((d) => (d.self || [])[i] === k).length));
+  return h("div.twrap",
+    h("div.panel.center-text", h("h2", "🌉 평화의 다리 완성!"), bridgeSVG(VILLAGES, done)),
+    h("div.wrap-grid",
+      h("div.panel",
+        h("h3", "오늘 배운 것"),
+        h("ul.learned",
+          h("li", "들이의 단위: ", h("b", "L(리터)"), ", ", h("b", "mL(밀리리터)")),
+          h("li", h("b", "1 L = 1000 mL")),
+          h("li", h("b", `${fmtLmL(JAR_ML)}`), " = ", h("b", `${JAR_ML} mL`), ` (${readLmL(JAR_ML)})`),
+          h("li", "단위를 쓰면 누가 재어도 똑같이 말할 수 있어요!"))),
+      h("div.panel",
+        h("h3", "스스로 평가 (😀 / 🙂 / 😥)"),
+        SELF_CHECK.map((t, i) => h("div.agg-row", h("span", t), h("span.agg", `😀 ${agg[i][0]}  🙂 ${agg[i][1]}  😥 ${agg[i][2]}`)))),
+      h("div.panel",
+        h("h3", "🕵️ 과제 · 다음 차시"),
+        h("p", "우리 집 들이 탐정: 집에 있는 물건 3개의 들이를 라벨에서 찾아 적어 오기"),
+        h("p.small", "다음 시간: 들이의 덧셈과 뺄셈"))));
+}
+
+boot();
