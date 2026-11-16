@@ -66,6 +66,8 @@ Firebase 콘솔 → Realtime Database → **규칙** 탭에 [`database.rules.jso
 | `js/widgets.js` | 문제 부품(객관식, 숫자 입력, L·mL 입력, 따라 쓰기, 짝 맞추기) |
 | `js/art.js` | 항아리·컵·비커·다리 그림(SVG) |
 | `js/sync.js` | 실시간 동기화(Firebase / 로컬 / 수동) |
-| `docs/` | 수업안·활동지, 양식과 참고 자료 |
+| `docs/수업안_들이_공개수업.hwpx` | 수업안(양식 그대로) + 활동지 ①②와 예시 답안 |
+| `docs/tools/build_lesson_plan.py` | 양식에 내용을 채워 수업안 hwpx를 다시 만드는 스크립트 (`python3 docs/tools/build_lesson_plan.py`, lxml·Pillow 필요) |
+| `docs/양식_참고/` | 받은 양식과 참고 완성본 |
 
 로컬에서 확인: 저장소 폴더에서 `python3 -m http.server 8000` 실행 후 `http://localhost:8000/teacher?mode=local` (cleanUrls가 없으므로 로컬에선 `/teacher.html?mode=local`).
