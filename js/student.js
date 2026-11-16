@@ -254,7 +254,14 @@ const A2_MISSIONS = [
   { mark: "1000", name: "천 개의 물방울" },
   { mark: "장부", name: "마을 장부" },
 ];
-const medal = (i, cls = "medal") => h(`div.${cls}`, h("img", { src: IMG.badge[i], alt: "" }), h("b", A2_MISSIONS[i].mark));
+// 메달 글자 크기: 글자 폭에 맞춰 메달 안쪽 원(지름의 약 44%) 안에 들어가게
+const MEDAL_PX = { "medal": 92, "medal.sm": 64, "medal.big": 210 };
+function medal(i, cls = "medal") {
+  const mark = A2_MISSIONS[i].mark;
+  const em = [...mark].reduce((a, c) => a + (/[가-힣]/.test(c) ? 1.0 : c === "m" ? 0.9 : 0.62), 0);
+  const px = Math.round((MEDAL_PX[cls] || 92) * Math.min(0.36, 0.44 / em));
+  return h(`div.${cls}`, h("img", { src: IMG.badge[i], alt: "" }), h("b", { style: { fontSize: px + "px" } }, mark));
+}
 
 // 각인 획득 축하 창
 function showReward(i, title) {
