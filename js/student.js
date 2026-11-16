@@ -1,8 +1,8 @@
 // 학생 화면
-import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, MATCH_PAIRS, SCALE_LEVELS, SELF_CHECK, IMG } from "./config.js";
+import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, MATCH_PAIRS, SCALE_LEVELS, SELF_CHECK, IMG, ACTIVITIES } from "./config.js";
 import { createSync } from "./sync.js";
 import { h, speakBtn, speak, toast, confetti, store, fmtLmL, readLmL, shuffle, vImg } from "./util.js";
-import { jarSVG, cupSVG, beakerSVG, literBoxSVG, bridgeSVG } from "./art.js";
+import { jarSVG, cupSVG, beakerSVG, literBoxSVG, bridgeSVG, pourSceneSVG } from "./art.js";
 import { choiceQuiz, numberQuestion, lmlQuestion, traceBox, matchGame } from "./widgets.js";
 
 const app = document.getElementById("app");
@@ -112,7 +112,7 @@ function renderStage() {
     h("div.stage-name", st.label),
     h("div.conn", { title: S.sync ? "실시간 연결" : "수동 모드" }, S.sync ? "●" : "수동"),
   );
-  const builders = { lobby: stLobby, story: stStory, a1: stA1, a2: stA2, a3: stA3, wrap: stWrap };
+  const builders = { lobby: stLobby, story: stStory, goal: stGoal, a1: stA1, a2: stA2, a3: stA3, wrap: stWrap };
   S.ctrl = (builders[S.stage] || stLobby)();
   const nodes = [header, h("main.stage", S.ctrl.el)];
   if (!S.sync) {
@@ -154,7 +154,6 @@ function stStory() {
       h("div.story-img-wrap", h("img.story-img", { src: s.img, alt: s.title }), h("span.story-no", `${idx + 1} / ${STORY.length}`)),
       h("h2", s.title, speakBtn(s.text)),
       h("p.story-text", s.text),
-      last ? h("div.goal", h("b", "📜 학습 문제"), h("p", LESSON_GOAL)) : null,
       last ? h("p.mine", vImg(village(), "emblem-sm"), `우리는 ${village().name}! 우리 마을 컵을 받았어요.`) : null,
       !S.sync ? h("div.row",
         h("button.btn", { disabled: idx === 0, onclick: () => { localIdx--; draw(); } }, "◀"),
@@ -163,6 +162,17 @@ function stStory() {
   };
   draw();
   return { el: wrap, update: draw };
+}
+
+// ───────────────── 학습 문제 ─────────────────
+function stGoal() {
+  return { el: h("div.goal-stage",
+    h("div.panel.goal-card",
+      h("img.goal-guide", { src: IMG.guide.hello, alt: "" }),
+      h("p.goal-kicker", "오늘의 학습 문제"),
+      h("h2.goal-text", LESSON_GOAL, speakBtn(LESSON_GOAL))),
+    h("div.act-list", ACTIVITIES.map((a, i) => h("div.panel.act-card",
+      h("span.act-no", a.no), h("b", a.name), h("p", a.desc))))) };
 }
 
 // ───────────────── 활동1: 물 거래 대소동 ─────────────────
@@ -184,31 +194,33 @@ function stA1() {
     const reveal = S.room.reveal ? h("div.panel.reveal",
       h("h3", "🔍 마을 컵을 나란히 놓아 보면…"),
       h("div.cups-row", VILLAGES.map((x) => h("div.cup-col", cupSVG(x, { base: 90 }), h("span.cup-name", x.name.replace(" 마을", ""))))),
-      h("p.big-msg", "컵의 크기가 서로 달라요! 그래서 같은 항아리도 다르게 잰 거예요."),
-      h("p", "👉 모두가 똑같이 쓸 수 있는 ‘기준’이 필요해요!")) : null;
+      S.room.conclude
+        ? [h("p.big-msg", "컵의 크기가 서로 달라서 같은 항아리도 다르게 잰 거예요."),
+           h("p.big-msg.accent", "👉 누구나 똑같이 쓸 수 있는 ‘기준’이 필요해요!")]
+        : h("p.question", "🤔 컵들을 비교해 보세요. 무엇을 알 수 있나요?")) : null;
+    const arrived = VILLAGES.filter((x) => res[x.id]?.a1 != null).length;
     return h("div",
-      h("div.panel", h("h3", "여섯 마을의 결과", speakBtn("여섯 마을의 결과를 살펴봐요. 같은 항아리인데 왜 결과가 다를까요?")),
+      h("div.panel", h("h3", "여섯 마을의 결과", h("span.count-chip", `${arrived} / 6`)),
         board,
-        h("p.question", "🤔 같은 항아리인데 왜 마을마다 결과가 다를까요?")),
+        S.room.ask
+          ? h("p.question", "🤔 같은 항아리인데 왜 마을마다 컵 수가 다를까요?", speakBtn("같은 항아리인데 왜 마을마다 컵 수가 다를까요?"))
+          : h("p.waiting", arrived < 6 ? "다른 마을의 결과가 도착하기를 기다려요…" : "모든 마을의 결과가 도착했어요! 선생님 화면을 봐 주세요.")),
       reveal);
   };
 
   const draw = () => {
     if (P.submitted) { root.replaceChildren(h("p.done-banner", `✅ 우리 마을은 ${P.count}컵이라고 알렸어요!`), drawBoard()); return; }
-    const jar = jarSVG(Math.min(1, (P.pours * v.cup) / JAR_ML));
-    const cup = cupSVG(v, { base: 120 });
+    const scene = pourSceneSVG(v, JAR_ML, P.pours * v.cup);
     const full = P.pours >= need;
     const tally = h("div.tally", Array.from({ length: P.pours }, (_, i) => h("span.tally-cup", { style: { "--vc": v.color } }, vImg(v, "emblem-xs"))));
     const pourBtn = h("button.btn.primary.big", { type: "button", disabled: full, onclick: () => {
       pourBtn.disabled = true;
-      cup.classList.add("pouring");
-      setTimeout(() => {
-        cup.classList.remove("pouring");
-        P.pours = Math.min(need, P.pours + 1); saveProg();
-        jar.setLevel((P.pours * v.cup) / JAR_ML);
+      const nextPours = Math.min(need, P.pours + 1);
+      scene.pour((nextPours * v.cup) / JAR_ML).then(() => {
+        P.pours = nextPours; saveProg();
         tally.append(h("span.tally-cup.pop", { style: { "--vc": v.color } }, vImg(v, "emblem-xs")));
-        if (P.pours >= need) setTimeout(draw, 900); else pourBtn.disabled = false;
-      }, 650);
+        if (P.pours >= need) setTimeout(draw, 400); else pourBtn.disabled = false;
+      });
     } }, "🫗 컵으로 물 붓기");
     const ask = full ? h("div.panel.ask",
       h("p.big-msg", "항아리가 가득 찼어요! 💧"),
@@ -219,14 +231,14 @@ function stA1() {
         hint: "아래에 있는 컵 그림의 개수를 하나씩 세어 보세요.",
         onCorrect: () => {
           P.submitted = true; P.count = need; saveProg();
-          push(`villages/${v.id}`, { a1: need });
+          push(`villages/${v.id}`, { a1: need, [`a1by/${S.seat}`]: true });
           confetti(30); draw();
         },
       })) : null;
     root.replaceChildren(
       h("div.panel.mission", h("h3", "미션 1 · 우리 마을 컵으로 마법 항아리 재기", speakBtn("우리 마을 컵으로 물을 부어서 마법 항아리를 가득 채워 보세요. 몇 컵이 들어가는지 세어 보세요.")),
         h("p", "컵으로 물을 부어 항아리를 가득 채워 보세요. 몇 컵이 들어갈까요?")),
-      h("div.scene", h("div.cup-holder", cup, h("span.label", v.cupName)), h("div.arrow", "➜"), h("div.jar-holder", jar)),
+      h("div.scene.pour-wrap", scene, h("span.label.cup-label", v.cupName)),
       h("div.row.center-row", pourBtn,
         h("button.btn.small", { type: "button", onclick: () => { P.pours = 0; saveProg(); draw(); } }, "↺ 처음부터")),
       tally, ask);
@@ -373,7 +385,7 @@ function stA3() {
     if (SCALE_LEVELS[P.lvl].ask === "both" && P.part === 0) { P.part = 1; saveProg(); draw(); return; }
     const lv = SCALE_LEVELS[P.lvl];
     if (lv.final) {
-      push(`villages/${v.id}`, { a3: { l: Math.floor(lv.value / 1000), ml: lv.value % 1000 } });
+      push(`villages/${v.id}`, { a3: { l: Math.floor(lv.value / 1000), ml: lv.value % 1000 }, [`a3by/${S.seat}`]: true });
     }
     P.lvl++; P.part = 0; P.poured = false; saveProg();
     push(`devices/${devId()}`, { a3: P.lvl });
@@ -400,7 +412,7 @@ function stA3() {
         h("img.guide-mid", { src: IMG.guide.cheer, alt: "" }),
         h("h2", `마법 항아리의 들이는 ${fmtLmL(JAR_ML)}!`),
         h("p.big-msg", `${JAR_ML} mL · ${readLmL(JAR_ML)}`, speakBtn(`마법 항아리의 들이는 ${readLmL(JAR_ML)}, ${JAR_ML} 밀리리터예요.`)),
-        h("p", "단위로 재니까 어느 마을이 재도 똑같아요!")), bridgeBoard());
+        h("p", "다른 마을은 몇 L 몇 mL가 나왔을까요? 아래 다리에서 확인해 보세요!")), bridgeBoard());
       return;
     }
     const lv = SCALE_LEVELS[P.lvl];

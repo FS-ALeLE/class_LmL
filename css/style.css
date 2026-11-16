@@ -451,3 +451,33 @@ body.teacher { --fs: 20px; }
 @keyframes stamp { 0% { transform: scale(2) rotate(-4deg); opacity: 0; } 100% { transform: scale(1) rotate(-4deg); opacity: 1; } }
 @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ── 학습 문제 화면 ── */
+.goal-stage, .tgoal { max-width: 980px; margin: 0 auto; }
+.goal-card { position: relative; text-align: center; padding: 30px 26px 26px; margin-top: 40px; background: linear-gradient(180deg, rgba(255, 248, 228, .95), rgba(255, 240, 205, .95)); box-shadow: 0 0 0 3px rgba(247, 161, 58, .5), var(--shadow); }
+.goal-guide { position: absolute; left: -6px; top: -54px; width: 110px; animation: bob 2.6s ease-in-out infinite; }
+.goal-kicker { display: inline-block; margin: 0 0 8px; padding: 4px 16px; border-radius: 999px; background: var(--sun); color: #fff; font-family: var(--font-title); font-size: 1.1em; box-shadow: 0 3px 0 var(--sun-d); }
+.goal-text { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; font-size: 1.6em; line-height: 1.45; margin: .2em 0 0; }
+.goal-card.big { margin-top: 18px; padding: 34px 40px 34px 200px; }
+.goal-card.big .goal-guide { width: 150px; top: auto; bottom: 18px; left: 30px; }
+.goal-card.big .goal-text { font-size: 2em; }
+.tgoal .act-list { margin-top: 4px; }
+.act-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.act-card { margin: 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.act-card b { font-family: var(--font-title); font-weight: 400; font-size: 1.3em; }
+.act-card p { margin: 0; color: var(--ink-2); font-size: .92em; }
+.act-no { background: var(--oasis); color: #fff; border-radius: 999px; padding: 2px 12px; font-weight: 800; font-size: .85em; }
+@media (max-width: 700px) { .act-list { grid-template-columns: 1fr; } }
+
+/* ── 활동1 붓기 장면 ── */
+.pour-wrap { position: relative; flex-direction: column; align-items: center; gap: 0; }
+.pour-scene { width: min(520px, 100%); height: auto; overflow: visible; filter: drop-shadow(0 10px 12px rgba(110, 66, 18, .18)); }
+.cup-label { margin-top: -8px; align-self: flex-start; margin-left: 9%; }
+.count-chip { margin-left: auto; background: var(--oasis); color: #fff; border-radius: 999px; padding: 2px 12px; font-family: var(--font); font-weight: 800; font-size: .7em; }
+.waiting, .t-wait { text-align: center; color: var(--ink-2); font-weight: 800; }
+.t-wait { background: var(--glass); display: table; margin: 10px auto; padding: 10px 26px; border-radius: 999px; box-shadow: var(--shadow-sm); font-size: 1.15em; }
+.senders { font-size: .7em; color: var(--ink-2); font-weight: 700; min-height: 1.2em; }
+
+/* ── 활동2 교사 미션 안내 ── */
+.mission-list { padding-left: 1.4em; margin: 8px 0 12px; }
+.mission-list li { margin: 8px 0; }

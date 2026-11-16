@@ -1,5 +1,5 @@
 // 교사 진행판 (TV·전자칠판에 띄우는 화면)
-import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, SCALE_LEVELS, SELF_CHECK, IMG } from "./config.js";
+import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, SCALE_LEVELS, SELF_CHECK, IMG, ACTIVITIES } from "./config.js";
 import { createSync } from "./sync.js";
 import { h, store, toast, confetti, fmtLmL, readLmL, speakBtn, vImg } from "./util.js";
 import { jarSVG, cupSVG, bridgeSVG } from "./art.js";
@@ -27,7 +27,7 @@ async function boot() {
 }
 
 function freshRoom() {
-  return { createdAt: Date.now(), stage: "lobby", storyIdx: 0, reveal: false, attention: false, villages: {}, devices: {} };
+  return { createdAt: Date.now(), stage: "lobby", storyIdx: 0, ask: false, reveal: false, conclude: false, a2open: false, attention: false, villages: {}, devices: {} };
 }
 
 async function createRoom() {
@@ -120,7 +120,7 @@ function render() {
   const stepper = h("nav.stepper", STAGES.map((s, i) =>
     h("button.step", { type: "button", class: `step ${i === idx ? "now" : i < idx ? "past" : ""}`, onclick: () => goStage(i) }, h("span.n", i), s.short)));
 
-  const views = { lobby: vLobby, story: vStory, a1: vA1, a2: vA2, a3: vA3, wrap: vWrap };
+  const views = { lobby: vLobby, story: vStory, goal: vGoal, a1: vA1, a2: vA2, a3: vA3, wrap: vWrap };
   const main = h("main.tmain", (views[R.stage] || vLobby)(R));
   const storyLabel = R.stage === "story" ? ` (${(R.storyIdx || 0) + 1}/${STORY.length})` : "";
   const foot = h("footer.tfoot",
@@ -159,17 +159,51 @@ function vStory(R) {
     h("div.tstory-stage",
       h("img.tstory-img", { src: s.img, alt: s.title }),
       h("div.tstory-cap", h("h1", s.title, speakBtn(s.text)), h("p.story-text", s.text))),
-    i === STORY.length - 1 ? h("div.goal.big", h("b", "📜 학습 문제"), h("p", LESSON_GOAL)) : null,
-    i === STORY.length - 1 ? h("div.flow", "활동1 물 거래 대소동 → 활동2 단위의 탄생 → 활동3 평화의 눈금") : null,
     h("div.dots-nav", STORY.map((_, k) => h("i", { class: k === i ? "on" : "" }))));
+}
+
+// ───────────────── 학습 문제 ─────────────────
+function vGoal() {
+  return h("div.tgoal",
+    h("div.panel.goal-card.big",
+      h("img.goal-guide", { src: IMG.guide.hello, alt: "" }),
+      h("p.goal-kicker", "오늘의 학습 문제"),
+      h("h1.goal-text", LESSON_GOAL, speakBtn(LESSON_GOAL))),
+    h("div.act-list", ACTIVITIES.map((a) => h("div.panel.act-card",
+      h("span.act-no", a.no), h("b", a.name), h("p", a.desc)))));
+}
+
+// 결과를 보낸 태블릿 번호 (같은 마을 태블릿은 모두 같은 값을 보냄)
+function senders(by) {
+  const seats = Object.keys(by || {}).sort();
+  return h("span.senders", seats.length ? `보낸 태블릿: ${seats.map((x) => x + "번").join(", ")}` : "\u00a0");
 }
 
 // ───────────────── 활동1 ─────────────────
 function vA1(R) {
   const res = R.villages || {};
   const cnt = VILLAGES.filter((v) => res[v.id]?.a1 != null).length;
+  // 진행 버튼: 질문하기 → 컵 나란히 놓기 → 결론 정리
+  let step;
+  if (!R.ask) {
+    step = h("div.t-question",
+      h("p.t-wait", cnt < 6 ? `마을의 결과를 기다리고 있어요 (${cnt} / 6)` : "모든 마을의 결과가 도착했어요!"),
+      h("button.btn.primary.big", { type: "button", disabled: cnt < 2, onclick: () => setRoom({ ask: true }) }, "🤔 질문 던지기"));
+  } else if (!R.reveal) {
+    step = h("div.t-question",
+      h("p.big-msg", "🤔 같은 항아리인데 왜 마을마다 컵 수가 다를까요?"),
+      h("button.btn.primary.big", { type: "button", onclick: () => setRoom({ reveal: true }) }, "🔍 마을 컵 나란히 놓기"));
+  } else {
+    step = h("div.panel.t-reveal",
+      h("div.cups-row", VILLAGES.map((v) => h("div.cup-col", cupSVG(v, { base: 130 }), h("span.cup-name", v.name.replace(" 마을", ""))))),
+      R.conclude
+        ? [h("p.big-msg", "컵의 크기가 서로 다르면 같은 항아리도 다르게 재어져요!"),
+           h("p.big-msg.accent", "👉 누구나 똑같이 쓸 수 있는 ‘기준 단위’가 필요해요.")]
+        : [h("p.big-msg", "🤔 컵들을 비교해 보세요. 무엇을 알 수 있나요? 다툼을 없애려면 무엇이 필요할까요?"),
+           h("button.btn.primary.big", { type: "button", onclick: () => setRoom({ conclude: true }) }, "📌 생각 정리하기")]);
+  }
   return h("div.ta1",
-    h("div.t-head", h("h2", "같은 마법 항아리인데… 몇 컵?"), h("span.badge", `${cnt} / 6 마을 도착`)),
+    h("div.t-head", h("h2", "마법 항아리에는 우리 마을 컵으로 몇 컵?"), h("span.badge", `${cnt} / 6 마을 도착`)),
     h("div.t-board", VILLAGES.map((v) => {
       const val = res[v.id]?.a1;
       return h("button.t-card", { type: "button", style: { "--vc": v.color }, class: `t-card ${val != null ? "in" : ""}`,
@@ -177,30 +211,32 @@ function vA1(R) {
           const x = prompt(`${v.name}의 결과(컵 수)를 입력하세요`, val ?? "");
           if (x !== null && x.trim() !== "" && !isNaN(+x)) setVillage(v.id, { a1: +x });
         } },
-        vImg(v), h("span.name", v.name), h("b.val", val != null ? `${val}컵` : "?"));
+        vImg(v), h("span.name", v.name), h("b.val", val != null ? `${val}컵` : "?"), senders(res[v.id]?.a1by));
     })),
-    R.reveal
-      ? h("div.panel.t-reveal",
-          h("div.cups-row", VILLAGES.map((v) => h("div.cup-col", cupSVG(v, { base: 130 }), h("span.cup-name", v.name.replace(" 마을", ""))))),
-          h("p.big-msg", "컵의 크기가 서로 다르면 같은 항아리도 다르게 재어져요!"),
-          h("p.big-msg.accent", "👉 누구나 똑같이 쓸 수 있는 ‘기준 단위’가 필요해요."))
-      : h("div.t-question",
-          h("p.big-msg", "🤔 같은 항아리인데 왜 결과가 다를까요?"),
-          h("button.btn.primary.big", { type: "button", onclick: () => setRoom({ reveal: true }) }, "🔍 마을 컵 나란히 놓기")),
-  );
+    step);
 }
 
 // ───────────────── 활동2 ─────────────────
 const A2N = ["L", "mL", "1000", "장부"];
 function vA2(R) {
-  return h("div.ta2",
-    h("div.concepts",
-      h("div.ccard", h("b", "1 L"), h("span", "1 리터")),
-      h("div.ccard", h("b", "1 mL"), h("span", "1 밀리리터")),
-      h("div.ccard.wide.accent", h("b", "1 L = 1000 mL")),
-      h("div.ccard.wide", h("b", "1 L 300 mL = 1300 mL"), h("span", "1 리터 300 밀리리터")),
-    ),
-    progressTable(R, "a2", A2N));
+  const left = R.a2open
+    ? h("div",
+        h("div.concepts",
+          h("div.ccard", h("b", "1 L"), h("span", "1 리터")),
+          h("div.ccard", h("b", "1 mL"), h("span", "1 밀리리터")),
+          h("div.ccard.wide.accent", h("b", "1 L = 1000 mL")),
+          h("div.ccard.wide", h("b", "1 L 300 mL = 1300 mL"), h("span", "1 리터 300 밀리리터"))),
+        h("button.btn.small", { type: "button", onclick: () => setRoom({ a2open: false }) }, "정리 숨기기"))
+    : h("div.panel.a2-missions",
+        h("h3", "단위의 각인 미션"),
+        h("ol.mission-list",
+          h("li", h("b", "L 각인"), " · 리터를 읽고 따라 쓰기"),
+          h("li", h("b", "mL 각인"), " · 밀리리터를 읽고 따라 쓰기"),
+          h("li", h("b", "천 개의 물방울"), " · 100 mL씩 부어 1 L 그릇 채우기"),
+          h("li", h("b", "마을 장부"), " · 들이를 바꾸어 나타내고 읽고 쓰기")),
+        h("p.small", "학생들이 미션을 해결한 뒤에 개념 정리를 보여 주세요. (답이 미리 보이지 않도록 가려 두었어요)"),
+        h("button.btn.primary", { type: "button", onclick: () => setRoom({ a2open: true }) }, "📌 개념 정리 보여 주기"));
+  return h("div.ta2", left, progressTable(R, "a2", A2N));
 }
 
 function progressTable(R, key, names) {
@@ -232,7 +268,7 @@ function vA3(R) {
         const r = res[v.id]?.a3;
         return h("button.t-card", { type: "button", style: { "--vc": v.color }, class: `t-card ${r ? "in" : ""}`, title: "눌러서 직접 완료 표시",
           onclick: () => setVillage(v.id, { a3: r ? null : { l: Math.floor(JAR_ML / 1000), ml: JAR_ML % 1000 } }) },
-          vImg(v), h("b.val", r ? fmtLmL(r.l * 1000 + r.ml) : "?"));
+          vImg(v), h("b.val", r ? fmtLmL(r.l * 1000 + r.ml) : "?"), senders(res[v.id]?.a3by));
       })),
       all ? h("p.big-msg.accent", `모든 마을이 똑같이 ${fmtLmL(JAR_ML)} (${JAR_ML} mL)!`) : null),
     progressTable(R, "a3", SCALE_LEVELS.map((l, i) => `${i + 1}단계`)));
