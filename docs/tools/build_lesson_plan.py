@@ -20,7 +20,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "docs", "양식_참고", "수업안_양식(2-2_국어예시).hwpx")
 OUT = os.path.join(ROOT, "docs", "수업안_들이_공개수업.hwpx")
 IMG = os.path.join(ROOT, "docs", "tools", "img")
-URL = "https://(배포 주소)"
+URL = "https://classlml.vercel.app"
 
 zin = zipfile.ZipFile(SRC)
 sec = etree.fromstring(zin.read("Contents/section0.xml"))
