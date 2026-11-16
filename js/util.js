@@ -9,7 +9,7 @@ export function h(sel, attrs, ...children) {
       if (t[0] === ".") el.classList.add(t.slice(1)); else el.id = t.slice(1);
     });
   }
-  if (attrs && (typeof attrs !== "object" || attrs instanceof Node || Array.isArray(attrs))) {
+  if (attrs !== null && attrs !== undefined && attrs !== false && (typeof attrs !== "object" || attrs instanceof Node || Array.isArray(attrs))) {
     children.unshift(attrs); attrs = null;
   }
   if (attrs) {
@@ -105,3 +105,8 @@ export const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
+
+// 마을 엠블럼 그림
+export function vImg(v, cls = "emblem") {
+  return h(`img.${cls}`, { src: v.img, alt: v.name, draggable: "false" });
+}

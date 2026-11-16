@@ -1,7 +1,7 @@
 // 학생 화면
-import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, MATCH_PAIRS, SCALE_LEVELS, SELF_CHECK } from "./config.js";
+import { VILLAGES, STAGES, STORY, LESSON_GOAL, JAR_ML, MATCH_PAIRS, SCALE_LEVELS, SELF_CHECK, IMG } from "./config.js";
 import { createSync } from "./sync.js";
-import { h, speakBtn, speak, toast, confetti, store, fmtLmL, readLmL, shuffle } from "./util.js";
+import { h, speakBtn, speak, toast, confetti, store, fmtLmL, readLmL, shuffle, vImg } from "./util.js";
 import { jarSVG, cupSVG, beakerSVG, literBoxSVG, bridgeSVG } from "./art.js";
 import { choiceQuiz, numberQuestion, lmlQuestion, traceBox, matchGame } from "./widgets.js";
 
@@ -34,7 +34,7 @@ function renderEntry() {
   const vBtns = VILLAGES.map((v) => h("button.village-btn", {
     type: "button", style: { "--vc": v.color }, "aria-pressed": String(selV === v.id),
     onclick: () => { selV = v.id; vBtns.forEach((b, i) => b.setAttribute("aria-pressed", String(VILLAGES[i].id === selV))); },
-  }, h("span.big", v.emoji), h("span", v.name)));
+  }, vImg(v), h("span", v.name)));
   const seatBtns = [1, 2, 3].map((n) => h("button.seat-btn", {
     type: "button", "aria-pressed": String(selSeat === n),
     onclick: () => { selSeat = n; seatBtns.forEach((b, i) => b.setAttribute("aria-pressed", String(i + 1 === selSeat))); },
@@ -61,8 +61,9 @@ function renderEntry() {
   };
 
   app.replaceChildren(h("div.entry",
-    h("h1.title", "🏜️ 여섯 마을 물 거래 대소동"),
-    h("p.sub", "들이의 단위를 찾아 평화의 다리를 놓아요!"),
+    h("div.hero", h("img.hero-img", { src: IMG.title, alt: "" }),
+      h("div.hero-text", h("h1.title", "여섯 마을 물 거래 대소동"), h("p.sub", "들이의 단위를 찾아 평화의 다리를 놓아요!"))),
+    h("div.entry-card",
     S.sync
       ? h("label.field", h("span", "① 방 코드"), codeIn)
       : h("p.manual-note", "📴 수동 모드예요. 선생님 안내에 따라 화면을 직접 넘겨요."),
@@ -70,8 +71,8 @@ function renderEntry() {
     h("div.field", h("span", `${S.sync ? "③" : "②"} 우리 태블릿 번호`), h("div.seat-row", seatBtns)),
     h("label.helper-toggle", helperChk, h("span", "도우미 모드 (글자 크게, 고르기 문제, 소리)")),
     err,
-    h("button.btn.primary.big", { type: "button", onclick: go }, "출발! 🐪"),
-  ));
+    h("button.btn.primary.big", { type: "button", onclick: go }, "출발!"),
+  )));
 }
 
 // ───────────────── 시작 & 동기화 ─────────────────
@@ -107,7 +108,7 @@ function renderStage() {
   const v = village();
   const st = STAGES.find((s) => s.key === S.stage) || STAGES[0];
   const header = h("header.bar", { style: { "--vc": v.color } },
-    h("div.who", h("span.big", v.emoji), h("span", `${v.name} · ${S.seat}번`)),
+    h("div.who", vImg(v, "emblem-sm"), h("span", `${v.name} · ${S.seat}번`)),
     h("div.stage-name", st.label),
     h("div.conn", { title: S.sync ? "실시간 연결" : "수동 모드" }, S.sync ? "●" : "수동"),
   );
@@ -133,11 +134,12 @@ function moveManual(d) {
 // ───────────────── 단계: 입장 대기 ─────────────────
 function stLobby() {
   const v = village();
-  return { el: h("div.center", h("div.panel.welcome",
-    h("div.huge", v.emoji),
-    h("h2", `${v.name} 견습 측량사님, 환영해요!`),
-    h("p", "선생님이 시작할 때까지 잠시 기다려 주세요."),
-    h("div.dots", h("i"), h("i"), h("i")))) };
+  return { el: h("div.center", h("div.welcome",
+    h("div.welcome-art", h("img.guide-big", { src: IMG.guide.hello, alt: "들이 박사" }), vImg(v, "emblem-lg")),
+    h("div.panel",
+      h("h2", `${v.name} 견습 측량사님, 환영해요!`),
+      h("p", "나는 들이 박사야. 선생님이 시작할 때까지 잠깐만 기다려 줘!"),
+      h("div.dots", h("i"), h("i"), h("i"))))) };
 }
 
 // ───────────────── 단계: 이야기 ─────────────────
@@ -149,11 +151,11 @@ function stStory() {
     const s = STORY[idx];
     const last = idx === STORY.length - 1;
     wrap.replaceChildren(h("div.panel.story-card",
-      h("div.story-art", s.art),
+      h("div.story-img-wrap", h("img.story-img", { src: s.img, alt: s.title }), h("span.story-no", `${idx + 1} / ${STORY.length}`)),
       h("h2", s.title, speakBtn(s.text)),
       h("p.story-text", s.text),
       last ? h("div.goal", h("b", "📜 학습 문제"), h("p", LESSON_GOAL)) : null,
-      last ? h("p.mine", `우리는 ${village().emoji} ${village().name}! 우리 마을 컵을 받았어요.`) : null,
+      last ? h("p.mine", vImg(village(), "emblem-sm"), `우리는 ${village().name}! 우리 마을 컵을 받았어요.`) : null,
       !S.sync ? h("div.row",
         h("button.btn", { disabled: idx === 0, onclick: () => { localIdx--; draw(); } }, "◀"),
         h("button.btn", { disabled: last, onclick: () => { localIdx++; draw(); } }, "▶")) : null,
@@ -176,12 +178,12 @@ function stA1() {
     const board = h("div.result-board", VILLAGES.map((x) => {
       const val = x.id === v.id ? (res[x.id]?.a1 ?? (P.submitted ? P.count : null)) : res[x.id]?.a1;
       return h("div.result-card", { style: { "--vc": x.color }, class: `result-card ${x.id === v.id ? "me" : ""}` },
-        h("span.big", x.emoji), h("span.name", x.name),
+        vImg(x), h("span.name", x.name),
         h("b.val", val != null ? `${val}컵` : "…"));
     }));
     const reveal = S.room.reveal ? h("div.panel.reveal",
       h("h3", "🔍 마을 컵을 나란히 놓아 보면…"),
-      h("div.cups-row", VILLAGES.map((x) => h("div.cup-col", cupSVG(x, { base: 90 }), h("span", x.emoji)))),
+      h("div.cups-row", VILLAGES.map((x) => h("div.cup-col", cupSVG(x, { base: 90 }), h("span.cup-name", x.name.replace(" 마을", ""))))),
       h("p.big-msg", "컵의 크기가 서로 달라요! 그래서 같은 항아리도 다르게 잰 거예요."),
       h("p", "👉 모두가 똑같이 쓸 수 있는 ‘기준’이 필요해요!")) : null;
     return h("div",
@@ -196,7 +198,7 @@ function stA1() {
     const jar = jarSVG(Math.min(1, (P.pours * v.cup) / JAR_ML));
     const cup = cupSVG(v, { base: 120 });
     const full = P.pours >= need;
-    const tally = h("div.tally", Array.from({ length: P.pours }, (_, i) => h("span.tally-cup", { style: { "--vc": v.color } }, v.emoji)));
+    const tally = h("div.tally", Array.from({ length: P.pours }, (_, i) => h("span.tally-cup", { style: { "--vc": v.color } }, vImg(v, "emblem-xs"))));
     const pourBtn = h("button.btn.primary.big", { type: "button", disabled: full, onclick: () => {
       pourBtn.disabled = true;
       cup.classList.add("pouring");
@@ -204,7 +206,7 @@ function stA1() {
         cup.classList.remove("pouring");
         P.pours = Math.min(need, P.pours + 1); saveProg();
         jar.setLevel((P.pours * v.cup) / JAR_ML);
-        tally.append(h("span.tally-cup.pop", { style: { "--vc": v.color } }, v.emoji));
+        tally.append(h("span.tally-cup.pop", { style: { "--vc": v.color } }, vImg(v, "emblem-xs")));
         if (P.pours >= need) setTimeout(draw, 900); else pourBtn.disabled = false;
       }, 650);
     } }, "🫗 컵으로 물 붓기");
@@ -235,22 +237,38 @@ function stA1() {
 
 // ───────────────── 활동2: 단위의 탄생 ─────────────────
 const A2_MISSIONS = [
-  { icon: "🅻", name: "L 각인" },
-  { icon: "💧", name: "mL 각인" },
-  { icon: "🔟", name: "천 개의 물방울" },
-  { icon: "📒", name: "마을 장부" },
+  { mark: "L", name: "L 각인" },
+  { mark: "mL", name: "mL 각인" },
+  { mark: "1000", name: "천 개의 물방울" },
+  { mark: "장부", name: "마을 장부" },
 ];
+const medal = (i, cls = "medal") => h(`div.${cls}`, h("img", { src: IMG.badge[i], alt: "" }), h("b", A2_MISSIONS[i].mark));
+
+// 각인 획득 축하 창
+function showReward(i, title) {
+  const close = () => box.remove();
+  const box = h("div.reward", { onclick: close },
+    h("div.reward-card", { onclick: (e) => e.stopPropagation() },
+      h("p.reward-kicker", "각인 획득!"),
+      medal(i, "medal.big"),
+      h("h2", title),
+      h("img.reward-guide", { src: IMG.guide.cheer, alt: "" }),
+      h("button.btn.primary.big", { type: "button", onclick: close }, "계속하기")));
+  document.body.append(box);
+}
 function stA2() {
   prog.a2 = prog.a2 || { m: 0, step: 0 };
   const P = prog.a2;
   const root = h("div.a2");
   const map = () => h("div.mission-map", A2_MISSIONS.map((m, i) =>
-    h("div.node", { class: `node ${i < P.m ? "done" : i === P.m ? "now" : ""}` }, h("span.ic", i < P.m ? "✅" : m.icon), h("span", m.name))));
+    h("div.node", { class: `node ${i < P.m ? "done" : i === P.m ? "now" : "locked"}` }, medal(i, "medal.sm"), h("span", m.name))));
   const next = () => { P.step++; saveProg(); draw(); };
   const finishMission = (msg) => {
+    const done = P.m;
     P.m++; P.step = 0; saveProg();
     push(`devices/${devId()}`, { a2: P.m });
-    confetti(25); toast(msg, "ok"); draw();
+    confetti(35); draw();
+    showReward(done, msg.replace(/^\S+\s/, ""));
   };
 
   const learnCard = ({ big, read, lines, speakText }) => h("div.panel.learn",
@@ -328,7 +346,7 @@ function stA2() {
   const draw = () => {
     if (P.m >= A2_MISSIONS.length) {
       root.replaceChildren(map(), h("div.panel.center-text",
-        h("div.huge", "🏅"), h("h2", "단위의 각인을 모두 모았어요!"),
+        h("div.medal-row", A2_MISSIONS.map((_, i) => medal(i, "medal"))), h("h2", "단위의 각인을 모두 모았어요!"),
         h("div.summary-cards",
           h("div.sum", h("b", "1 L"), h("span", "1 리터")),
           h("div.sum", h("b", "1 mL"), h("span", "1 밀리리터")),
@@ -372,14 +390,14 @@ function stA3() {
     return h("div.panel", h("h3", "🌉 평화의 다리"), bridgeSVG(VILLAGES, done),
       h("div.result-board.small", VILLAGES.map((x) => {
         const r = res[x.id]?.a3;
-        return h("div.result-card", { style: { "--vc": x.color } }, h("span.big", x.emoji), h("b.val", r ? fmtLmL(r.l * 1000 + r.ml) : "…"));
+        return h("div.result-card", { style: { "--vc": x.color } }, vImg(x), h("b.val", r ? fmtLmL(r.l * 1000 + r.ml) : "…"));
       })));
   };
 
   const draw = () => {
     if (P.lvl >= SCALE_LEVELS.length) {
       root.replaceChildren(levelDots(), h("div.panel.center-text",
-        h("div.huge", "🏺✨"),
+        h("img.guide-mid", { src: IMG.guide.cheer, alt: "" }),
         h("h2", `마법 항아리의 들이는 ${fmtLmL(JAR_ML)}!`),
         h("p.big-msg", `${JAR_ML} mL · ${readLmL(JAR_ML)}`, speakBtn(`마법 항아리의 들이는 ${readLmL(JAR_ML)}, ${JAR_ML} 밀리리터예요.`)),
         h("p", "단위로 재니까 어느 마을이 재도 똑같아요!")), bridgeBoard());
@@ -430,7 +448,7 @@ function stWrap() {
     const done = {}; VILLAGES.forEach((x) => { if (res[x.id]?.a3) done[x.id] = true; });
     if (!S.sync && (prog.a3?.lvl || 0) >= SCALE_LEVELS.length) done[S.v] = true;
     root.replaceChildren(
-      h("div.panel.center-text", h("h2", "🌉 평화의 다리가 놓였어요!"), bridgeSVG(VILLAGES, done),
+      h("div.panel.center-text.wrap-hero", h("img.story-img", { src: IMG.bridgeDone, alt: "" }), h("h2", "평화의 다리가 놓였어요!"), bridgeSVG(VILLAGES, done),
         h("p", "같은 단위(L, mL)로 재니까 여섯 마을의 들이가 똑같아졌어요.")),
       h("div.panel", h("h3", "📝 스스로 평가해 봐요"),
         SELF_CHECK.map((text, i) => h("div.self-row", h("span.self-q", text, speakBtn(text)),

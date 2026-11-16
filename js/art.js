@@ -37,7 +37,7 @@ export function cupSVG(village, { base = 110, full = true } = {}) {
   <svg class="cup" viewBox="0 0 100 115" width="${w}" height="${hgt}" role="img" aria-label="${village.cupName}">
     <path d="M10,8 L90,8 L80,108 L20,108 Z" fill="#fff" stroke="${village.color}" stroke-width="5" stroke-linejoin="round"/>
     ${full ? `<path d="M15,30 L85,30 L80,104 L20,104 Z" fill="#4fb3e8" opacity=".85"/>` : ""}
-    <text x="50" y="80" text-anchor="middle" font-size="34">${village.emoji}</text>
+    <image href="${village.img}" x="27" y="50" width="46" height="46"/>
   </svg>`);
   return svg;
 }
@@ -118,7 +118,7 @@ export function bridgeSVG(villages, done = {}) {
     planks += `<g class="plank ${ok ? "on" : ""}">
       <rect x="${x + 3}" y="120" width="${span - 6}" height="34" rx="6"
         fill="${ok ? v.color : "rgba(255,255,255,.35)"}" stroke="${ok ? "#5a3b1c" : "#9a7b55"}" stroke-width="3" ${ok ? "" : 'stroke-dasharray="7 6"'}/>
-      <text x="${x + span / 2}" y="${ok ? 146 : 145}" text-anchor="middle" font-size="22">${ok ? v.emoji : "?"}</text>
+      ${ok ? `<image href="${v.img}" x="${x + span / 2 - 19}" y="116" width="38" height="38"/>` : `<text x="${x + span / 2}" y="145" text-anchor="middle" font-size="22" fill="#9a7b55">?</text>`}
     </g>`;
   });
   return svgEl(`

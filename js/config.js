@@ -21,12 +21,12 @@ export const JAR_ML = 1200;
 // 여섯 마을. cup = 그 마을 컵의 들이(mL). 항아리를 나누면 모두 자연수가 되도록 정했습니다.
 // 1200 ÷ 200 = 6, ÷300 = 4, ÷150 = 8, ÷400 = 3, ÷240 = 5, ÷100 = 12
 export const VILLAGES = [
-  { id: 1, name: "해바라기 마을", emoji: "🌻", color: "#f2b705", cup: 200, cupName: "해바라기 컵" },
-  { id: 2, name: "선인장 마을",   emoji: "🌵", color: "#4caf50", cup: 300, cupName: "선인장 컵" },
-  { id: 3, name: "낙타 마을",     emoji: "🐪", color: "#c47f3c", cup: 150, cupName: "낙타 컵" },
-  { id: 4, name: "별빛 마을",     emoji: "⭐", color: "#7e57c2", cup: 400, cupName: "별빛 컵" },
-  { id: 5, name: "야자수 마을",   emoji: "🌴", color: "#00897b", cup: 240, cupName: "야자수 컵" },
-  { id: 6, name: "조개 마을",     emoji: "🐚", color: "#e57373", cup: 100, cupName: "조개 컵" },
+  { id: 1, img: "assets/img/village1.webp", name: "해바라기 마을", emoji: "🌻", color: "#f2b705", cup: 200, cupName: "해바라기 컵" },
+  { id: 2, img: "assets/img/village2.webp", name: "선인장 마을",   emoji: "🌵", color: "#4caf50", cup: 300, cupName: "선인장 컵" },
+  { id: 3, img: "assets/img/village3.webp", name: "낙타 마을",     emoji: "🐪", color: "#c47f3c", cup: 150, cupName: "낙타 컵" },
+  { id: 4, img: "assets/img/village4.webp", name: "별빛 마을",     emoji: "⭐", color: "#7e57c2", cup: 400, cupName: "별빛 컵" },
+  { id: 5, img: "assets/img/village5.webp", name: "야자수 마을",   emoji: "🌴", color: "#00897b", cup: 240, cupName: "야자수 컵" },
+  { id: 6, img: "assets/img/village6.webp", name: "조개 마을",     emoji: "🐚", color: "#e57373", cup: 100, cupName: "조개 컵" },
 ];
 
 // 수업 단계 (교사 화면이 이 순서로 진행)
@@ -44,22 +44,22 @@ export const STORY = [
   {
     title: "사막의 마법 항아리",
     text: "뜨거운 사막 한가운데 오아시스가 있어요. 오아시스에는 물이 마르지 않는 마법 항아리가 하나 있답니다.",
-    art: "🏜️🏺💧",
+    art: "🏜️🏺💧", img: "assets/img/story1.webp",
   },
   {
     title: "여섯 마을의 약속",
     text: "여섯 마을은 약속했어요. \"항아리 하나 가득 담기는 물을 똑같이 나누어 쓰자!\"",
-    art: "🌻🌵🐪⭐🌴🐚",
+    art: "🌻🌵🐪⭐🌴🐚", img: "assets/img/story2.webp",
   },
   {
     title: "그런데 큰일이 났어요!",
     text: "마을마다 항아리에 물이 얼마나 들어가는지 말이 달라요. \"우리 마을이 재 보니까 이만큼이야!\" \"아니야, 우리가 맞아!\"",
-    art: "😠💬😤",
+    art: "😠💬😤", img: "assets/img/story3.webp",
   },
   {
     title: "오늘의 미션",
     text: "들이를 정확하게 재고 나타내는 방법을 찾아 여섯 마을 사이에 평화의 다리를 놓아 주세요!",
-    art: "🌉✨",
+    art: "🌉✨", img: "assets/img/story4.webp",
   },
 ];
 
@@ -94,3 +94,16 @@ export const SELF_CHECK = [
   "들이를 L와 mL로 쓰고 읽을 수 있어요.",
   "눈금을 보고 들이를 잴 수 있어요.",
 ];
+
+// 그림 경로
+export const IMG = {
+  title: "assets/img/title_scene.webp",
+  bridgeDone: "assets/img/bridge_done.webp",
+  guide: {
+    hello: "assets/img/guide_hello.webp",
+    great: "assets/img/guide_great.webp",
+    think: "assets/img/guide_think.webp",
+    cheer: "assets/img/guide_cheer.webp",
+  },
+  badge: ["assets/img/badge1.webp", "assets/img/badge2.webp", "assets/img/badge3.webp", "assets/img/badge4.webp"],
+};

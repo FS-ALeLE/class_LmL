@@ -1,9 +1,24 @@
 // 문제 풀이 부품들 (객관식, 숫자 입력, L·mL 입력, 따라 쓰기, 짝 맞추기)
 import { h, shuffle, speakBtn, toast, speak } from "./util.js";
+import { IMG } from "./config.js";
+
+// 들이 박사 피드백 상자: 맞으면 엄지 척, 틀리면 생각하는 모습과 힌트 말풍선
+function coach(initial = "") {
+  const img = h("img.coach-img", { src: initial ? IMG.guide.hello : IMG.guide.think, alt: "", "aria-hidden": "true" });
+  const msg = h("span.coach-msg", initial);
+  const el = h(`div.feedback.coach${initial ? ".info" : ""}`, { role: "status", "aria-live": "polite" }, img, h("div.coach-bubble", msg));
+  el.set = (kind, text) => {
+    el.className = `feedback coach ${kind}`;
+    img.src = kind === "ok" ? IMG.guide.great : IMG.guide.think;
+    msg.textContent = text;
+    el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+  };
+  return el;
+}
 
 // 객관식: {q, options[], answer, speakText, onCorrect, hint}
 export function choiceQuiz({ q, options, answer, onCorrect, hint, speakText }) {
-  const fb = h("p.feedback");
+  const fb = coach();
   const box = h("div.quiz",
     h("div.q", h("span", q), speakBtn(speakText || q)),
     h("div.choices", shuffle(options).map((opt) => {
@@ -11,11 +26,11 @@ export function choiceQuiz({ q, options, answer, onCorrect, hint, speakText }) {
         if (box.dataset.done) return;
         if (opt === answer) {
           b.classList.add("right"); box.dataset.done = "1";
-          fb.textContent = "딩동댕! 맞았어요 🎉"; fb.className = "feedback ok";
+          fb.set("ok", "딩동댕! 맞았어요 🎉");
           setTimeout(onCorrect, 700);
         } else {
           b.classList.add("wrong"); setTimeout(() => b.classList.remove("wrong"), 600);
-          fb.textContent = hint || "다시 한번 생각해 볼까요?"; fb.className = "feedback no";
+          fb.set("no", hint || "다시 한번 생각해 볼까요?");
         }
       } }, opt);
       return b;
@@ -29,18 +44,18 @@ export function numberQuestion({ q, answer, unit = "", helper, helperOptions, on
   if (helper && helperOptions) {
     return choiceQuiz({ q, options: helperOptions.map((o) => `${prefix}${o}${unit ? " " + unit : ""}`), answer: `${prefix}${answer}${unit ? " " + unit : ""}`, onCorrect, hint });
   }
-  const fb = h("p.feedback");
+  const fb = coach();
   const input = h("input.num", { type: "number", inputmode: "numeric", min: "0", "aria-label": "답", placeholder: "?" });
   const check = () => {
     const v = Number(input.value);
-    if (input.value === "") { fb.textContent = "숫자를 입력해 주세요."; fb.className = "feedback no"; return; }
+    if (input.value === "") { fb.set("no", "숫자를 입력해 주세요."); return; }
     if (v === answer) {
       input.disabled = true; btn.disabled = true;
-      fb.textContent = "딩동댕! 맞았어요 🎉"; fb.className = "feedback ok";
+      fb.set("ok", "딩동댕! 맞았어요 🎉");
       setTimeout(onCorrect, 700);
     } else {
       input.classList.add("shake"); setTimeout(() => input.classList.remove("shake"), 500);
-      fb.textContent = hint || "다시 한번 생각해 볼까요?"; fb.className = "feedback no";
+      fb.set("no", hint || "다시 한번 생각해 볼까요?");
     }
   };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
@@ -56,21 +71,21 @@ export function lmlQuestion({ q, l, ml, helper, helperOptions, answerText, onCor
   if (helper && helperOptions) {
     return choiceQuiz({ q, options: helperOptions, answer: answerText, onCorrect, hint });
   }
-  const fb = h("p.feedback");
+  const fb = coach();
   const iL = h("input.num", { type: "number", inputmode: "numeric", min: "0", "aria-label": "리터", placeholder: "?" });
   const iM = h("input.num", { type: "number", inputmode: "numeric", min: "0", "aria-label": "밀리리터", placeholder: "?" });
   const check = () => {
     const vl = iL.value === "" ? 0 : Number(iL.value), vm = iM.value === "" ? 0 : Number(iM.value);
-    if (iL.value === "" && iM.value === "") { fb.textContent = "빈칸에 숫자를 넣어 주세요."; fb.className = "feedback no"; return; }
+    if (iL.value === "" && iM.value === "") { fb.set("no", "빈칸에 숫자를 넣어 주세요."); return; }
     if (vl === l && vm === ml) {
       iL.disabled = iM.disabled = btn.disabled = true;
-      fb.textContent = "딩동댕! 맞았어요 🎉"; fb.className = "feedback ok";
+      fb.set("ok", "딩동댕! 맞았어요 🎉");
       setTimeout(onCorrect, 700);
     } else {
       [iL, iM].forEach((i) => { i.classList.add("shake"); setTimeout(() => i.classList.remove("shake"), 500); });
       let msg = hint || "다시 한번 생각해 볼까요?";
       if (vm >= 1000) msg = "mL 칸에는 1000보다 작은 수가 들어가요. 1000 mL는 1 L로 바꿔 써요!";
-      fb.textContent = msg; fb.className = "feedback no";
+      fb.set("no", msg);
     }
   };
   const btn = h("button.btn.primary", { type: "button", onclick: check }, "확인");
@@ -121,7 +136,7 @@ export function traceBox({ glyph, helper, onDone }) {
 // 짝 맞추기: {pairs:[{a,b}], onDone}
 export function matchGame({ pairs, onDone }) {
   let sel = null, left = pairs.length;
-  const fb = h("p.feedback", "같은 들이끼리 짝을 지어 보세요. 왼쪽 카드 하나, 오른쪽 카드 하나를 차례로 눌러요.");
+  const fb = coach("같은 들이끼리 짝을 지어 보세요. 왼쪽 카드 하나, 오른쪽 카드 하나를 차례로 눌러요.");
   const mk = (text, key, side) => {
     const b = h("button.card-btn", { type: "button", "data-key": key, "data-side": side }, text);
     b.addEventListener("click", () => {
@@ -133,12 +148,12 @@ export function matchGame({ pairs, onDone }) {
       if (sel.dataset.key === String(key)) {
         [sel, b].forEach((x) => { x.classList.remove("sel"); x.classList.add("matched"); });
         sel = null; left--;
-        fb.textContent = "짝 완성! ✨"; fb.className = "feedback ok";
+        fb.set("ok", "짝 완성! ✨");
         if (left === 0) setTimeout(onDone, 700);
       } else {
         [sel, b].forEach((x) => { x.classList.add("wrong"); setTimeout(() => x.classList.remove("wrong", "sel"), 600); });
         sel = null;
-        fb.textContent = "앗, 들이가 달라요. 1 L는 1000 mL라는 걸 떠올려 보세요!"; fb.className = "feedback no";
+        fb.set("no", "앗, 들이가 달라요. 1 L는 1000 mL라는 걸 떠올려 보세요!");
       }
     });
     return b;
