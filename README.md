@@ -67,7 +67,8 @@ Firebase 콘솔 → Realtime Database → **규칙** 탭에 [`database.rules.jso
 | `js/art.js` | 항아리·컵·비커·다리 그림(SVG) |
 | `js/sync.js` | 실시간 동기화(Firebase / 로컬 / 수동) |
 | `assets/img/` | 그림(배경, 이야기, 마을 엠블럼, 들이 박사, 각인 메달). 같은 이름으로 덮어쓰면 그림이 바뀝니다 |
-| `docs/수업안_들이_공개수업.hwpx` | 수업안(양식 그대로) + 활동지 ①②와 예시 답안 |
+| `docs/수업안_최종제출본.hwpx` | **선생님이 직접 수정해 제출한 최종 수업안 (기준본)** |
+| `docs/수업안_들이_공개수업.hwpx` | 스크립트로 만든 초안(수업안 + 활동지 ①②와 예시 답안). 최종본은 위 제출본 |
 | `docs/tools/build_lesson_plan.py` | 양식에 내용을 채워 수업안 hwpx를 다시 만드는 스크립트 (`python3 docs/tools/build_lesson_plan.py`, lxml·Pillow 필요) |
 | `docs/양식_참고/` | 받은 양식과 참고 완성본 |
 
