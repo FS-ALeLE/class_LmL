@@ -109,13 +109,14 @@ function render() {
 
   const top = h("header.tbar",
     h("div.brand", h("img.brand-icon", { src: "assets/img/icon-192.png", alt: "" }), "여섯 마을 물 거래 대소동"),
-    h("div.code-chip", T.sync ? h("span", "방 코드 ", h("b", T.code)) : h("span", "📴 수동 모드")),
+    T.sync ? h("button.code-chip", { type: "button", title: "입장 QR 크게 보기", onclick: showJoinModal }, "방 코드 ", h("b", T.code)) : h("div.code-chip", h("span", "📴 수동 모드")),
     T.sync ? h("div.online", `👥 ${online}대 접속`) : null,
     h("button.btn.attn", { type: "button", "aria-pressed": String(!!R.attention), onclick: () => setRoom({ attention: !R.attention }) }, R.attention ? "👀 주목 해제" : "👀 주목"),
     h("details.menu", h("summary", "⚙️"),
       h("div.menu-body",
+        T.sync ? h("button.btn.primary", { type: "button", onclick: showJoinModal }, "📱 입장 QR·방 코드 크게 보기") : null,
         h("p.small", "학생 주소: ", h("b", studentURL())),
-        h("button.btn", { type: "button", onclick: () => { if (confirm("결과를 지우고 처음부터 할까요? (같은 방 코드 유지)")) setRoom({ ...freshRoom(), createdAt: R.createdAt || Date.now(), devices: R.devices || {} }); } }, "↺ 결과 초기화"),
+        h("button.btn", { type: "button", onclick: () => { if (confirm("결과를 지우고 처음부터 할까요? (같은 방 코드 유지)")) setRoom({ ...freshRoom(), createdAt: R.createdAt || Date.now(), devices: R.devices || {}, draw: R.draw || null }); } }, "↺ 결과 초기화"),
         T.sync ? h("button.btn", { type: "button", onclick: async () => { if (confirm("새 방을 만들까요? 학생들은 새 코드로 다시 들어와야 해요.")) { T.unsub?.(); await createRoom(); } } }, "🆕 새 방 만들기") : null,
         T.sync ? h("button.btn.danger", { type: "button", onclick: async () => { if (confirm("수업을 마치고 방을 닫을까요? 모든 기록이 지워져요.")) { T.unsub?.(); await T.sync.remove(rp()); store.del("deuli-teacher-room"); app.replaceChildren(h("div.center", h("div.panel", h("h2", "방을 닫았어요. 수고하셨습니다! 👏"), h("button.btn.primary", { onclick: () => location.reload() }, "새 수업 시작")))); } } }, "🚪 방 닫기") : null,
       )),
@@ -146,13 +147,87 @@ function vLobby(R) {
       T.sync ? h("div.join-code", T.code) : h("p", "수동 모드: 학생들은 주소로 들어와 ‘출발’을 누르면 돼요."),
       qr,
       h("p.url", url)),
+    h("div",
+    drawPanel(R),
     h("div.panel",
       h("h3", "마을별 접속 현황"),
       h("div.village-status", VILLAGES.map((v) => {
         const ds = Object.values(R.devices || {}).filter((d) => d.v === v.id);
         return h("div.vs", { style: { "--vc": v.color } }, vImg(v), h("b", v.name),
           h("span.devs", ds.length ? ds.sort((a, b) => a.seat - b.seat).map((d) => h("i", { class: d.online === false ? "off" : "" }, `${d.seat}${d.helper ? "🤝" : ""}`)) : "—"));
-      }))));
+      })))));
+}
+
+// ── 입장 QR·방 코드 크게 보기 (수업 중 연결이 끊긴 학생용, 어느 단계에서나 열 수 있음) ──
+function showJoinModal() {
+  document.querySelector(".modal")?.remove();
+  const url = studentURL();
+  const qr = h("div.qr.big");
+  const close = () => box.remove();
+  const box = h("div.modal", { onclick: close },
+    h("div.modal-card.join-modal", { onclick: (e) => e.stopPropagation() },
+      h("h2", "태블릿으로 다시 들어와요!"),
+      h("div.join-code", T.code),
+      qr,
+      h("p.url", url),
+      h("p.small", "다시 들어오면 고른 마을과 태블릿 번호, 지금까지 푼 내용이 그대로 이어져요."),
+      h("button.btn.primary.big", { type: "button", onclick: close }, "닫기")));
+  document.body.append(box);
+  if (window.QRCode) { try { new window.QRCode(qr, { text: url, width: 300, height: 300 }); } catch {} }
+}
+
+// ── 모둠별 마을 추첨 ──
+function drawPanel(R) {
+  const draw = R.draw;
+  return h("div.panel.draw-panel",
+    h("h3", "🎲 모둠별 마을 추첨"),
+    draw
+      ? h("div.draw-result", [1, 2, 3, 4, 5, 6].map((g) => {
+          const v = VILLAGES.find((x) => x.id === draw[g]);
+          return v ? h("div.draw-item", { style: { "--vc": v.color } }, h("span.g", `${g}모둠`), vImg(v, "emblem-sm"), h("b", v.name)) : null;
+        }))
+      : h("p.small", "추첨하면 1~6모둠이 맡을 마을이 정해져요. 학생 입장 화면에도 ‘○모둠’ 표시가 나와요."),
+    h("button.btn.primary", { type: "button", onclick: () => {
+      if (draw && Object.keys(R.devices || {}).length && !confirm("이미 들어온 태블릿이 있어요. 다시 추첨할까요? (학생이 고른 마을은 바뀌지 않아요)")) return;
+      runDraw();
+    } }, draw ? "🎲 다시 추첨하기" : "🎲 마을 추첨하기"));
+}
+
+function runDraw() {
+  // 무작위 배정 (피셔-예이츠)
+  const ids = VILLAGES.map((v) => v.id);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  const result = {}; ids.forEach((id, i) => { result[i + 1] = id; });
+
+  document.querySelector(".modal")?.remove();
+  const slots = [1, 2, 3, 4, 5, 6].map((g) => {
+    const img = h("img.emblem-lg", { src: VILLAGES[0].img, alt: "" });
+    const name = h("b.slot-name", "…");
+    const el = h("div.slot", h("span.g", `${g}모둠`), h("div.slot-window", img), name);
+    return { g, el, img, name, done: false };
+  });
+  const okBtn = h("button.btn.primary.big", { type: "button", disabled: true, onclick: () => box.remove() }, "확인");
+  const box = h("div.modal",
+    h("div.modal-card.draw-modal",
+      h("h2", "🎲 우리 모둠은 어느 마을?"),
+      h("div.slots", slots.map((s) => s.el)),
+      okBtn));
+  document.body.append(box);
+
+  let k = 0;
+  const spin = setInterval(() => {
+    k++;
+    slots.forEach((s) => { if (!s.done) s.img.src = VILLAGES[(k + s.g) % VILLAGES.length].img; });
+  }, 90);
+  slots.forEach((s, i) => setTimeout(() => {
+    const v = VILLAGES.find((x) => x.id === result[s.g]);
+    s.done = true; s.img.src = v.img; s.name.textContent = v.name;
+    s.el.style.setProperty("--vc", v.color); s.el.classList.add("revealed");
+    if (i === slots.length - 1) {
+      clearInterval(spin); confetti(70); okBtn.disabled = false;
+      setRoom({ draw: result });
+    }
+  }, 1300 + i * 550));
 }
 
 // ───────────────── 이야기 ─────────────────

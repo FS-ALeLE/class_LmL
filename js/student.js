@@ -35,7 +35,23 @@ function renderEntry() {
   const vBtns = VILLAGES.map((v) => h("button.village-btn", {
     type: "button", style: { "--vc": v.color }, "aria-pressed": String(selV === v.id),
     onclick: () => { selV = v.id; vBtns.forEach((b, i) => b.setAttribute("aria-pressed", String(VILLAGES[i].id === selV))); },
-  }, vImg(v), h("span", v.name)));
+  }, h("span.grp"), vImg(v), h("span", v.name)));
+  // 선생님이 모둠별 마을을 추첨했으면 마을 단추에 ‘○모둠’ 표시
+  const showDraw = (draw) => {
+    VILLAGES.forEach((v, i) => {
+      const g = draw ? Object.keys(draw).find((k) => draw[k] === v.id) : null;
+      const tag = vBtns[i].querySelector(".grp");
+      tag.textContent = g ? `${g}모둠` : "";
+      tag.classList.toggle("on", !!g);
+    });
+  };
+  const loadDraw = async () => {
+    const code = codeIn.value.trim();
+    if (!S.sync || !/^\d{4}$/.test(code)) { showDraw(null); return; }
+    try { showDraw(await S.sync.get(`rooms/${code}/draw`)); } catch { showDraw(null); }
+  };
+  codeIn.addEventListener("input", loadDraw);
+  setTimeout(loadDraw, 0);
   const seatBtns = [1, 2, 3].map((n) => h("button.seat-btn", {
     type: "button", "aria-pressed": String(selSeat === n),
     onclick: () => { selSeat = n; seatBtns.forEach((b, i) => b.setAttribute("aria-pressed", String(i + 1 === selSeat))); },
