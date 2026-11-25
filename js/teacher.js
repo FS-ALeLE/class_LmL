@@ -114,8 +114,7 @@ function render() {
     h("button.btn.attn", { type: "button", "aria-pressed": String(!!R.attention), onclick: () => setRoom({ attention: !R.attention }) }, R.attention ? "👀 주목 해제" : "👀 주목"),
     h("details.menu", h("summary", "⚙️"),
       h("div.menu-body",
-        T.sync ? h("button.btn.primary", { type: "button", onclick: showJoinModal }, "📱 입장 QR·방 코드 크게 보기") : null,
-        h("p.small", "학생 주소: ", h("b", studentURL())),
+        h("button.btn.primary", { type: "button", onclick: showJoinModal }, "📱 입장 QR"),
         h("button.btn", { type: "button", onclick: () => { if (confirm("결과를 지우고 처음부터 할까요? (같은 방 코드 유지)")) setRoom({ ...freshRoom(), createdAt: R.createdAt || Date.now(), devices: R.devices || {}, draw: R.draw || null }); } }, "↺ 결과 초기화"),
         T.sync ? h("button.btn", { type: "button", onclick: async () => { if (confirm("새 방을 만들까요? 학생들은 새 코드로 다시 들어와야 해요.")) { T.unsub?.(); await createRoom(); } } }, "🆕 새 방 만들기") : null,
         T.sync ? h("button.btn.danger", { type: "button", onclick: async () => { if (confirm("수업을 마치고 방을 닫을까요? 모든 기록이 지워져요.")) { T.unsub?.(); await T.sync.remove(rp()); store.del("deuli-teacher-room"); app.replaceChildren(h("div.center", h("div.panel", h("h2", "방을 닫았어요. 수고하셨습니다! 👏"), h("button.btn.primary", { onclick: () => location.reload() }, "새 수업 시작")))); } } }, "🚪 방 닫기") : null,
@@ -158,7 +157,7 @@ function vLobby(R) {
       })))));
 }
 
-// ── 입장 QR·방 코드 크게 보기 (수업 중 연결이 끊긴 학생용, 어느 단계에서나 열 수 있음) ──
+// ── 입장 QR (수업 중 연결이 끊긴 학생용, 어느 단계에서나 열 수 있음) ──
 function showJoinModal() {
   document.querySelector(".modal")?.remove();
   const url = studentURL();
@@ -167,7 +166,7 @@ function showJoinModal() {
   const box = h("div.modal", { onclick: close },
     h("div.modal-card.join-modal", { onclick: (e) => e.stopPropagation() },
       h("h2", "태블릿으로 다시 들어와요!"),
-      h("div.join-code", T.code),
+      T.sync ? h("div.join-code", T.code) : h("p", "수동 모드: 주소로 들어와 ‘출발’을 누르면 돼요."),
       qr,
       h("p.url", url),
       h("p.small", "다시 들어오면 고른 마을과 태블릿 번호, 지금까지 푼 내용이 그대로 이어져요."),
@@ -184,13 +183,14 @@ function drawPanel(R) {
     draw
       ? h("div.draw-result", [1, 2, 3, 4, 5, 6].map((g) => {
           const v = VILLAGES.find((x) => x.id === draw[g]);
-          return v ? h("div.draw-item", { style: { "--vc": v.color } }, h("span.g", `${g}모둠`), vImg(v, "emblem-sm"), h("b", v.name)) : null;
+          return v ? h("div.draw-item", { style: { "--vc": v.color } }, h("span.g", `${g}모둠`), vImg(v, "emblem-sm"), h("b", v.name.replace(" 마을", ""))) : null;
         }))
       : h("p.small", "추첨하면 1~6모둠이 맡을 마을이 정해져요. 학생 입장 화면에도 ‘○모둠’ 표시가 나와요."),
     h("button.btn.primary", { type: "button", onclick: () => {
       if (draw && Object.keys(R.devices || {}).length && !confirm("이미 들어온 태블릿이 있어요. 다시 추첨할까요? (학생이 고른 마을은 바뀌지 않아요)")) return;
       runDraw();
-    } }, draw ? "🎲 다시 추첨하기" : "🎲 마을 추첨하기"));
+    } }, draw ? "🎲 다시 추첨하기" : "🎲 마을 추첨하기"),
+    draw ? h("button.btn", { type: "button", onclick: () => { if (confirm("추첨 결과를 지울까요? (학생이 고른 마을은 바뀌지 않아요)")) setRoom({ draw: null }); } }, "↺ 추첨 초기화") : null);
 }
 
 function runDraw() {
